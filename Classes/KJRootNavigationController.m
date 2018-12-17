@@ -2,8 +2,8 @@
 //  KJRootNavigationController.m
 //  KJRootNavigationController
 //
-//  Created by kejunapple on 2017/7/28.
-//  Copyright © 2017年 kejunapple. All rights reserved.
+//  Created by coder on 2017/7/28.
+//  Copyright © 2017年 coder. All rights reserved.
 //
 
 #import "KJRootNavigationController.h"
@@ -25,7 +25,7 @@ static NSString *kBackBarItemTitle = nil;
     
     //这里不用initWithRootViewController方法初始化,因为该方法会导致直接进入viewDidLoad方法，而不是先走if内的逻辑，故改为[super init]，然后在给viewControllers设值，效果等同
     if (self = [super init]) {
-        self.hasBackItem = hasBack;
+        _hasBackItem = hasBack;
         self.viewControllers = @[rootViewController];
     }
     return self;
@@ -34,11 +34,16 @@ static NSString *kBackBarItemTitle = nil;
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    [self.interactivePopGestureRecognizer addObserver:self forKeyPath:@"enabled" options:NSKeyValueObservingOptionNew context:nil];
+    
     self.view.backgroundColor = [UIColor whiteColor];
     self.navigationBar.hidden = NO;
     [self.navigationBar setTranslucent:NO];
     
     [self setupBackBarItem];
+}
+- (void)dealloc {
+    [self.interactivePopGestureRecognizer removeObserver:self forKeyPath:@"enabled"];
 }
 
 - (void)backEvent {
@@ -68,17 +73,63 @@ static NSString *kBackBarItemTitle = nil;
             UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithCustomView:button];
             self.topViewController.navigationItem.leftBarButtonItem = backItem;
         }
+    } else {
+        self.topViewController.navigationItem.leftBarButtonItem = nil;
+    }
+}
+- (void)setHasBackItem:(BOOL)hasBackItem {
+    if (_hasBackItem != hasBackItem) {
+        _hasBackItem = hasBackItem;
+        [self setupBackBarItem];
     }
 }
 
-#pragma mark - override
-- (void)pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
-    
-    UINavigationController *navigationVC = self;
+#pragma mark - KVO
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
+    if ([keyPath isEqualToString:@"enabled"]) {
+        BOOL enabled = [change[NSKeyValueChangeNewKey] boolValue];
+        UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+        navigationVC.interactivePopGestureRecognizer.enabled = enabled;
+    }
+}
+
+#pragma mark - c function
+UINavigationController *getRootNavigationControllerFor(UINavigationController *selfVC) {
+    UINavigationController *navigationVC = selfVC;
     
     while (navigationVC && [navigationVC isKindOfClass:[KJRootNavigationController class]] == NO) {
         navigationVC = navigationVC.navigationController;
     }
+    return navigationVC;
+}
+#pragma mark - override
+- (NSArray<UIViewController *> *)viewControllers {
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+    
+    if (navigationVC) {
+       return [navigationVC viewControllers];
+    } else {
+        return [super viewControllers];
+    }
+}
+- (void)setViewControllers:(NSArray<UIViewController *> *)viewControllers animated:(BOOL)animated {
+    NSAssert(viewControllers.count, @"viewControllers 不能为空");
+    
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+    
+    if (navigationVC) {
+        [navigationVC setViewControllers:viewControllers animated:animated  ];
+    } else {
+        [super setViewControllers:viewControllers animated:animated];
+    }
+}
+- (void)setViewControllers:(NSArray<__kindof UIViewController *> *)viewControllers {
+    [self setViewControllers:viewControllers animated:NO];
+}
+- (void)pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
+    
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+    
     //找到KJRootNavigationController，如果有说明是通过vc中调用的[self.navigationController pushViewController:xx]，那么用KJRootNavigationController来push；
     //如果没有KJRootNavigationController，则表明是用来包装viewController
     if (navigationVC) {
@@ -89,11 +140,8 @@ static NSString *kBackBarItemTitle = nil;
 }
 - (UIViewController *)popViewControllerAnimated:(BOOL)animated {
     
-    UINavigationController *navigationVC = self;
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
     
-    while (navigationVC && [navigationVC isKindOfClass:[KJRootNavigationController class]] == NO) {
-        navigationVC = navigationVC.navigationController;
-    }
     if (navigationVC) {
         return [navigationVC popViewControllerAnimated:animated];
     } else {
@@ -102,11 +150,9 @@ static NSString *kBackBarItemTitle = nil;
 }
 
 - (NSArray<UIViewController *> *)popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
-    UINavigationController *navigationVC = self;
     
-    while (navigationVC && [navigationVC isKindOfClass:[KJRootNavigationController class]] == NO) {
-        navigationVC = navigationVC.navigationController;
-    }
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+    
     if (navigationVC) {
         return [navigationVC popToViewController:viewController animated:animated];
     } else {
@@ -115,11 +161,9 @@ static NSString *kBackBarItemTitle = nil;
 }
 
 - (NSArray<UIViewController *> *)popToRootViewControllerAnimated:(BOOL)animated {
-    UINavigationController *navigationVC = self;
     
-    while (navigationVC && [navigationVC isKindOfClass:[KJRootNavigationController class]] == NO) {
-        navigationVC = navigationVC.navigationController;
-    }
+    UINavigationController *navigationVC = getRootNavigationControllerFor(self);
+    
     if (navigationVC) {
         return [navigationVC popToRootViewControllerAnimated:animated];
     } else {
@@ -147,6 +191,7 @@ static NSString *kBackBarItemTitle = nil;
 @implementation __KJWrapperViewController
 
 - (instancetype)initWithContentViewController:(UIViewController *)contentViewController hasBackItem:(BOOL)hasBack {
+    
     if (self = [super init]) {
         __KJWrapperNavigaionController *nav = (__KJWrapperNavigaionController *)contentViewController;
         if ([contentViewController isKindOfClass:[__KJWrapperNavigaionController class]] == NO) {
@@ -155,7 +200,7 @@ static NSString *kBackBarItemTitle = nil;
         self.contentViewController = nav;
         
         [self addChildViewController:nav];
-        [contentViewController didMoveToParentViewController:self];
+        [nav didMoveToParentViewController:self];
         
     }
     
@@ -167,8 +212,9 @@ static NSString *kBackBarItemTitle = nil;
     
     self.view.backgroundColor = [UIColor whiteColor];
     
+    self.contentViewController.view.frame = self.view.bounds;
     self.contentViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    
+
     [self.view addSubview:self.contentViewController.view];
 }
 
@@ -220,8 +266,30 @@ static NSString *kBackBarItemTitle = nil;
 }
 
 
-
 #pragma mark - override
+
+- (void)setViewControllers:(NSArray<UIViewController *> *)viewControllers animated:(BOOL)animated {
+    NSAssert(viewControllers.count, @"viewControllers 不能为空");
+    
+    NSMutableArray *vcArray = [NSMutableArray arrayWithCapacity:viewControllers.count];
+    for (NSInteger index = 0; index < viewControllers.count; index++) {
+        BOOL hasBack = index > 0;
+        UIViewController *vc = viewControllers[index];
+        
+        if ([vc isKindOfClass:[__KJWrapperViewController class]]) {
+            __KJWrapperViewController *wraperVC = (__KJWrapperViewController *)vc;
+            wraperVC.contentViewController.hasBackItem = hasBack;
+            [vcArray addObject:vc];
+        } else {
+            __KJWrapperViewController *wrapperVC = [[__KJWrapperViewController alloc] initWithContentViewController:vc hasBackItem:hasBack];
+            [vcArray addObject:wrapperVC];
+        }
+    }
+    [super setViewControllers:vcArray animated:animated];
+}
+- (void)setViewControllers:(NSArray<__kindof UIViewController *> *)viewControllers {
+    [self setViewControllers:viewControllers animated:NO];
+}
 
 - (void)pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
     //注意：直接push一个navigationController是不被允许的，所以需要把navigationController作为子VC添加到一个ViewController上，然后push这ViewController

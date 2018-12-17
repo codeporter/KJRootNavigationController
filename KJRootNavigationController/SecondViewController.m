@@ -2,12 +2,14 @@
 //  SecondViewController.m
 //  KJRootNavigationController
 //
-//  Created by kejunapple on 2017/7/28.
-//  Copyright © 2017年 kejunapple. All rights reserved.
+//  Created by coder on 2017/7/28.
+//  Copyright © 2017年 coder. All rights reserved.
 //
 
 #import "SecondViewController.h"
 #import "ViewController.h"
+#import "UIViewController+KJRootNavigationControllerItem.h"
+
 
 @interface SecondViewController ()<UITableViewDelegate, UITableViewDataSource>
 @property (strong, nonatomic) UITableView *tableView;
@@ -30,7 +32,23 @@
     
     [self.view addSubview:self.tableView];
 }
+//- (void)viewWillAppear:(BOOL)animated {
+//    [super viewWillAppear:animated];
+//    self.kj_navigationController.interactivePopGestureRecognizer.enabled = NO;
+//}
+//- (void)viewWillDisappear:(BOOL)animated {
+//    [super viewWillDisappear:animated];
+//    self.kj_navigationController.interactivePopGestureRecognizer.enabled = YES;
+//}
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    self.navigationController.interactivePopGestureRecognizer.enabled = NO;
+}
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    self.navigationController.interactivePopGestureRecognizer.enabled = YES;
+}
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     return 100;
 }

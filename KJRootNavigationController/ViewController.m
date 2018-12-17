@@ -2,8 +2,8 @@
 //  ViewController.m
 //  KJRootNavigationController
 //
-//  Created by kejunapple on 2017/7/29.
-//  Copyright © 2017年 kejunapple. All rights reserved.
+//  Created by coder on 2017/7/29.
+//  Copyright © 2017年 coder. All rights reserved.
 //
 
 #import "ViewController.h"
@@ -38,8 +38,24 @@
         self.title = @(count).stringValue;
         [self.navigationController.navigationBar setBarTintColor:colors[arc4random_uniform(3)]];
     }
+    
+    
+    
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    button.frame = CGRectMake(50, 200, 200, 100);
+    [button setTitle:@"设置viewControllers" forState:UIControlStateNormal];
+    [button addTarget:self action:@selector(setViewControllersEvent) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:button];
 }
+- (void)setViewControllersEvent {
 
+    SecondViewController *vc1 = [SecondViewController new];
+    SecondViewController *vc2 = [SecondViewController new];
+    
+    NSMutableArray *vcs = self.navigationController.viewControllers.mutableCopy;
+    
+    self.navigationController.viewControllers = @[vcs.firstObject, vc1,vc2];
+}
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     if (self.kj_navigationController.viewControllers.count == 1) {
         SecondViewController *vc = [SecondViewController new];
